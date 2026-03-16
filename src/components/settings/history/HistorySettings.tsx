@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { AudioPlayer } from "../../ui/AudioPlayer";
 import { Button } from "../../ui/Button";
-import { Copy, Star, Check, Trash2, FolderOpen } from "lucide-react";
+import { Copy, Star, Check, Trash2, FolderOpen, FileAudio, Loader2 } from "lucide-react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { readFile } from "@tauri-apps/plugin-fs";
+import { open } from "@tauri-apps/plugin-dialog";
 import { commands, type HistoryEntry } from "@/bindings";
 import { formatDateTime } from "@/utils/dateFormat";
 import { useOsType } from "@/hooks/useOsType";
@@ -132,6 +133,82 @@ export const HistorySettings: React.FC = () => {
     }
   };
 
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcribeStep, setTranscribeStep] = useState<string | null>(null);
+  const [transcribeChunk, setTranscribeChunk] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!isTranscribing) return;
+    const setupListener = async () => {
+      const unlisten = await listen<{
+        step: string;
+        current_chunk: number;
+        total_chunks: number;
+      }>("transcribe-file-progress", (event) => {
+        setTranscribeStep(event.payload.step);
+        if (
+          event.payload.step === "transcribing" &&
+          event.payload.total_chunks > 1
+        ) {
+          setTranscribeChunk({
+            current: event.payload.current_chunk,
+            total: event.payload.total_chunks,
+          });
+        } else {
+          setTranscribeChunk(null);
+        }
+      });
+      return unlisten;
+    };
+    const promise = setupListener();
+    return () => {
+      promise.then((unlisten) => unlisten());
+    };
+  }, [isTranscribing]);
+
+  const getTranscribeLabel = () => {
+    if (!isTranscribing || !transcribeStep)
+      return t("settings.history.transcribeFile");
+    if (transcribeStep === "transcribing" && transcribeChunk) {
+      return `${t("settings.history.transcribeStep.transcribing")} ${transcribeChunk.current}/${transcribeChunk.total}`;
+    }
+    const key = `settings.history.transcribeStep.${transcribeStep}`;
+    return t(key);
+  };
+
+  const handleTranscribeFile = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [
+          {
+            name: "Audio",
+            extensions: ["wav", "m4a", "mp3", "flac", "ogg"],
+          },
+        ],
+      });
+
+      if (!selected) return;
+
+      setIsTranscribing(true);
+      setTranscribeStep(null);
+      const result = await commands.transcribeFile(selected);
+      if (result.status === "error") {
+        console.error("Transcription failed:", result.error);
+        alert(t("settings.history.transcribeFileError"));
+      }
+    } catch (error) {
+      console.error("Failed to transcribe file:", error);
+      alert(t("settings.history.transcribeFileError"));
+    } finally {
+      setIsTranscribing(false);
+      setTranscribeStep(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-3xl w-full mx-auto space-y-6">
@@ -142,10 +219,29 @@ export const HistorySettings: React.FC = () => {
                 {t("settings.history.title")}
               </h2>
             </div>
-            <OpenRecordingsButton
-              onClick={openRecordingsFolder}
-              label={t("settings.history.openFolder")}
-            />
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleTranscribeFile}
+                variant="secondary"
+                size="sm"
+                className="flex items-center gap-2"
+                title={t("settings.history.transcribeFile")}
+                disabled={isTranscribing}
+              >
+                {isTranscribing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileAudio className="w-4 h-4" />
+                )}
+                <span>
+  {getTranscribeLabel()}
+                </span>
+              </Button>
+              <OpenRecordingsButton
+                onClick={openRecordingsFolder}
+                label={t("settings.history.openFolder")}
+              />
+            </div>
           </div>
           <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
             <div className="px-4 py-3 text-center text-text/60">
@@ -167,10 +263,29 @@ export const HistorySettings: React.FC = () => {
                 {t("settings.history.title")}
               </h2>
             </div>
-            <OpenRecordingsButton
-              onClick={openRecordingsFolder}
-              label={t("settings.history.openFolder")}
-            />
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleTranscribeFile}
+                variant="secondary"
+                size="sm"
+                className="flex items-center gap-2"
+                title={t("settings.history.transcribeFile")}
+                disabled={isTranscribing}
+              >
+                {isTranscribing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileAudio className="w-4 h-4" />
+                )}
+                <span>
+  {getTranscribeLabel()}
+                </span>
+              </Button>
+              <OpenRecordingsButton
+                onClick={openRecordingsFolder}
+                label={t("settings.history.openFolder")}
+              />
+            </div>
           </div>
           <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
             <div className="px-4 py-3 text-center text-text/60">
@@ -191,10 +306,29 @@ export const HistorySettings: React.FC = () => {
               {t("settings.history.title")}
             </h2>
           </div>
-          <OpenRecordingsButton
-            onClick={openRecordingsFolder}
-            label={t("settings.history.openFolder")}
-          />
+          <div className="flex items-center gap-2">
+              <Button
+                onClick={handleTranscribeFile}
+                variant="secondary"
+                size="sm"
+                className="flex items-center gap-2"
+                title={t("settings.history.transcribeFile")}
+                disabled={isTranscribing}
+              >
+                {isTranscribing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileAudio className="w-4 h-4" />
+                )}
+                <span>
+  {getTranscribeLabel()}
+                </span>
+              </Button>
+              <OpenRecordingsButton
+                onClick={openRecordingsFolder}
+                label={t("settings.history.openFolder")}
+              />
+            </div>
         </div>
         <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
           <div className="divide-y divide-mid-gray/20">

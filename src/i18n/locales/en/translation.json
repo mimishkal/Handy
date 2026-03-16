@@ -328,7 +328,17 @@
     "postProcessing": {
       "title": "Post Process",
       "hotkey": {
-        "title": "Hotkey"
+        "title": "Hotkeys"
+      },
+      "promptSlot2": {
+        "title": "Prompt for Hotkey 2",
+        "description": "Select a prompt for the second post-processing hotkey.",
+        "selectPrompt": "Select a prompt"
+      },
+      "promptSlot3": {
+        "title": "Prompt for Hotkey 3",
+        "description": "Select a prompt for the third post-processing hotkey.",
+        "selectPrompt": "Select a prompt"
       },
       "api": {
         "title": "API (OpenAI Compatible)",
@@ -394,7 +404,16 @@
       "save": "Save transcription",
       "unsave": "Remove from saved",
       "delete": "Delete entry",
-      "deleteError": "Failed to delete entry. Please try again."
+      "deleteError": "Failed to delete entry. Please try again.",
+      "transcribeFile": "Transcribe File",
+      "transcribing": "Transcribing...",
+      "transcribeFileError": "Failed to transcribe file. Please try again.",
+      "transcribeStep": {
+        "reading": "Reading file...",
+        "loading_model": "Loading model...",
+        "transcribing": "Transcribing...",
+        "saving": "Saving..."
+      }
     },
     "debug": {
       "title": "Debug",
@@ -422,6 +441,11 @@
         "title": "History Limit",
         "description": "Maximum number of history entries to keep",
         "entries": "entries"
+      },
+      "fileTranscribeChunking": {
+        "title": "File Transcription Chunking",
+        "description": "Split long audio files into chunks for transcription. Prevents failures with large files.",
+        "seconds": "sec"
       },
       "recordingRetention": {
         "title": "Auto-Delete Recordings",

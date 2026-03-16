@@ -10,6 +10,7 @@ import { SoundPicker } from "../SoundPicker";
 import { ClamshellMicrophoneSelector } from "../ClamshellMicrophoneSelector";
 import { ShortcutInput } from "../ShortcutInput";
 import { UpdateChecksToggle } from "../UpdateChecksToggle";
+import { FileTranscribeChunking } from "../FileTranscribeChunking";
 import { useSettings } from "../../../hooks/useSettings";
 
 export const DebugSettings: React.FC = () => {
@@ -39,6 +40,7 @@ export const DebugSettings: React.FC = () => {
             disabled={pushToTalk}
           />
         )}
+        <FileTranscribeChunking descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
     </div>
   );

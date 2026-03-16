@@ -125,6 +125,10 @@ const settingUpdaters: {
     commands.changePostProcessEnabledSetting(value as boolean),
   post_process_selected_prompt_id: (value) =>
     commands.setPostProcessSelectedPrompt(value as string),
+  post_process_selected_prompt_id_2: (value) =>
+    commands.setPostProcessSelectedPrompt2(value as string),
+  post_process_selected_prompt_id_3: (value) =>
+    commands.setPostProcessSelectedPrompt3(value as string),
   mute_while_recording: (value) =>
     commands.changeMuteWhileRecordingSetting(value as boolean),
   append_trailing_space: (value) =>
@@ -135,6 +139,10 @@ const settingUpdaters: {
     commands.changeExperimentalEnabledSetting(value as boolean),
   show_tray_icon: (value) =>
     commands.changeShowTrayIconSetting(value as boolean),
+  file_transcribe_chunking: (value) =>
+    commands.setFileTranscribeChunking(value as boolean),
+  file_transcribe_chunk_seconds: (value) =>
+    commands.setFileTranscribeChunkSeconds(value as number),
 };
 
 export const useSettingsStore = create<SettingsStore>()(

@@ -40,6 +40,8 @@ pub trait ShortcutAction: Send + Sync {
 // Transcribe Action
 struct TranscribeAction {
     post_process: bool,
+    /// Which prompt slot to use: None = default (slot 1), Some(2) = slot 2
+    prompt_slot: Option<u8>,
 }
 
 /// Field name for structured output JSON schema
@@ -56,7 +58,11 @@ fn build_system_prompt(prompt_template: &str) -> String {
     prompt_template.replace("${output}", "").trim().to_string()
 }
 
-async fn post_process_transcription(settings: &AppSettings, transcription: &str) -> Option<String> {
+async fn post_process_transcription(
+    settings: &AppSettings,
+    transcription: &str,
+    prompt_id_override: Option<&str>,
+) -> Option<String> {
     let provider = match settings.active_post_process_provider().cloned() {
         Some(provider) => provider,
         None => {
@@ -79,12 +85,15 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
         return None;
     }
 
-    let selected_prompt_id = match &settings.post_process_selected_prompt_id {
-        Some(id) => id.clone(),
-        None => {
-            debug!("Post-processing skipped because no prompt is selected");
-            return None;
-        }
+    let selected_prompt_id = match prompt_id_override {
+        Some(id) => id.to_string(),
+        None => match &settings.post_process_selected_prompt_id {
+            Some(id) => id.clone(),
+            None => {
+                debug!("Post-processing skipped because no prompt is selected");
+                return None;
+            }
+        },
     };
 
     let prompt = match settings
@@ -414,6 +423,7 @@ impl ShortcutAction for TranscribeAction {
 
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
         let post_process = self.post_process;
+        let prompt_slot = self.prompt_slot;
 
         tauri::async_runtime::spawn(async move {
             let _guard = FinishGuard(ah.clone());
@@ -458,8 +468,19 @@ impl ShortcutAction for TranscribeAction {
                             if post_process {
                                 show_processing_overlay(&ah);
                             }
+                            // Determine which prompt to use based on slot
+                            let prompt_id_for_slot: Option<String> = match prompt_slot {
+                                Some(2) => settings.post_process_selected_prompt_id_2.clone(),
+                                Some(3) => settings.post_process_selected_prompt_id_3.clone(),
+                                _ => None, // use default (slot 1) inside post_process_transcription
+                            };
                             let processed = if post_process {
-                                post_process_transcription(&settings, &final_text).await
+                                post_process_transcription(
+                                    &settings,
+                                    &final_text,
+                                    prompt_id_for_slot.as_deref(),
+                                )
+                                .await
                             } else {
                                 None
                             };
@@ -468,7 +489,12 @@ impl ShortcutAction for TranscribeAction {
                                 final_text = processed_text;
 
                                 // Get the prompt that was used
-                                if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
+                                let used_prompt_id = match prompt_slot {
+                                    Some(2) => settings.post_process_selected_prompt_id_2.as_ref(),
+                                    Some(3) => settings.post_process_selected_prompt_id_3.as_ref(),
+                                    _ => settings.post_process_selected_prompt_id.as_ref(),
+                                };
+                                if let Some(prompt_id) = used_prompt_id {
                                     if let Some(prompt) = settings
                                         .post_process_prompts
                                         .iter()
@@ -587,11 +613,29 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
         "transcribe".to_string(),
         Arc::new(TranscribeAction {
             post_process: false,
+            prompt_slot: None,
         }) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "transcribe_with_post_process".to_string(),
-        Arc::new(TranscribeAction { post_process: true }) as Arc<dyn ShortcutAction>,
+        Arc::new(TranscribeAction {
+            post_process: true,
+            prompt_slot: None,
+        }) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "transcribe_with_post_process_2".to_string(),
+        Arc::new(TranscribeAction {
+            post_process: true,
+            prompt_slot: Some(2),
+        }) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "transcribe_with_post_process_3".to_string(),
+        Arc::new(TranscribeAction {
+            post_process: true,
+            prompt_slot: Some(3),
+        }) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "cancel".to_string(),

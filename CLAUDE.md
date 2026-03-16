@@ -70,6 +70,10 @@ Handy is a cross-platform desktop speech-to-text app built with Tauri 2.x (Rust 
 
 **Pipeline Processing:** Audio → VAD → Whisper/Parakeet → Text output → Clipboard/Paste
 
+**File Transcription:** Users can transcribe pre-recorded audio files (WAV, M4A, MP3, FLAC, OGG) via the "Transcribe File" button in History settings. Uses `symphonia` for multi-format decoding → mono conversion → 16kHz resampling via `rubato` → transcription. Command: `transcribe_file` in `commands/transcription.rs`.
+
+**Multiple Post-Processing Hotkeys:** Three independent hotkeys for post-processing, each with its own configurable prompt. Settings fields: `post_process_selected_prompt_id`, `post_process_selected_prompt_id_2`, `post_process_selected_prompt_id_3`. Shortcut fields: `post_process_shortcut`, `post_process_shortcut_2`, `post_process_shortcut_3`. Default hotkeys: `⌥⇧Space`, `⌥⌘Space`, `⌥⌘⇧Space`.
+
 **State Flow:** Zustand → Tauri Command → Rust State → Persistence (tauri-plugin-store)
 
 ## Internationalization (i18n)
@@ -135,7 +139,9 @@ Handy supports command-line parameters on all platforms for integration with scr
 | Flag                     | Description                                                                        |
 | ------------------------ | ---------------------------------------------------------------------------------- |
 | `--toggle-transcription` | Toggle recording on/off on a running instance (via `tauri_plugin_single_instance`) |
-| `--toggle-post-process`  | Toggle recording with post-processing on/off on a running instance                 |
+| `--toggle-post-process`  | Toggle recording with post-processing on/off on a running instance (hotkey 1)      |
+| `--toggle-post-process-2`| Toggle recording with post-processing hotkey 2 on a running instance               |
+| `--toggle-post-process-3`| Toggle recording with post-processing hotkey 3 on a running instance               |
 | `--cancel`               | Cancel the current operation on a running instance                                 |
 | `--start-hidden`         | Launch without showing the main window (tray icon still visible)                   |
 | `--no-tray`              | Launch without the system tray icon (closing window quits the app)                 |
@@ -155,5 +161,23 @@ Access debug features: `Cmd+Shift+D` (macOS) or `Ctrl+Shift+D` (Windows/Linux)
 ## Platform Notes
 
 - **macOS**: Metal acceleration, accessibility permissions required
+  - **Build fix**: If Xcode build fails with Swift errors, ensure `xcode-select` points to full Xcode: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
+  - **Install unsigned builds**: `xattr -cr /Applications/Handy.app` before first launch
+  - **DMG build may fail** on bundle_dmg.sh — the `.app` is still usable from `target/release/bundle/macos/`
 - **Windows**: Vulkan acceleration, code signing
 - **Linux**: OpenBLAS + Vulkan, limited Wayland support, overlay disabled by default
+
+## Audio File Transcription
+
+Supports transcribing pre-recorded audio files in addition to live microphone recording.
+
+**Supported formats:** WAV, M4A/AAC, MP3, FLAC, OGG/Vorbis
+
+**Key files:**
+- `src-tauri/src/audio_toolkit/audio/utils.rs` - `read_audio_file()` decodes any supported format to 16kHz mono f32 samples
+- `src-tauri/src/commands/transcription.rs` - `transcribe_file` Tauri command
+- `src/components/settings/history/HistorySettings.tsx` - UI button with file picker dialog
+
+**Dependencies:** `symphonia` (multi-format decoder), `rubato` (FFT resampling), `@tauri-apps/plugin-dialog` (native file picker)
+
+**Note:** History is SQLite-based (not filesystem-based), so manually placing files in the recordings folder won't make them appear in history. Use the "Transcribe File" button instead.
