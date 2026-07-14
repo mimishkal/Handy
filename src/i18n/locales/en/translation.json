@@ -15,6 +15,7 @@
     "postProcessing": "Post Process",
     "history": "History",
     "debug": "Debug",
+    "meeting": "Meeting",
     "about": "About"
   },
   "onboarding": {
@@ -519,6 +520,35 @@
           "description": "High-performance inference of OpenAI's Whisper automatic speech recognition model",
           "details": "Handy uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors."
         }
+      }
+    }
+  },
+  "meeting": {
+    "live": {
+      "title": "Live Meeting",
+      "recording": "Recording"
+    },
+    "liveTranscript": {
+      "waiting": "Waiting for speech..."
+    },
+    "speaker": {
+      "me": "Me",
+      "others": "Others"
+    },
+    "history": {
+      "title": "Meeting History",
+      "loading": "Loading meetings...",
+      "empty": "No meetings yet. Start a meeting from the system tray."
+    },
+    "transcript": {
+      "loading": "Loading transcript...",
+      "empty": "No transcript segments.",
+      "copyAll": "Copy All"
+    },
+    "permissions": {
+      "screenRecording": {
+        "title": "Screen Recording Permission Required",
+        "description": "To capture audio from other meeting participants, grant Screen Recording permission in System Settings → Privacy & Security → Screen Recording. Without it, only your microphone will be recorded."
       }
     }
   },

@@ -1,5 +1,6 @@
 use crate::actions::ACTION_MAP;
 use crate::managers::audio::AudioRecordingManager;
+use crate::managers::meeting::MeetingManager;
 use log::{debug, error, warn};
 use std::sync::mpsc::{self, Sender};
 use std::sync::Arc;
@@ -159,6 +160,15 @@ impl TranscriptionCoordinator {
 }
 
 fn start(app: &AppHandle, stage: &mut Stage, binding_id: &str, hotkey_string: &str) {
+    // Block dictation while a meeting is in progress
+    if app
+        .try_state::<Arc<MeetingManager>>()
+        .map_or(false, |m| m.is_active())
+    {
+        warn!("Ignoring '{binding_id}': meeting is in progress");
+        return;
+    }
+
     let Some(action) = ACTION_MAP.get(binding_id) else {
         warn!("No action in ACTION_MAP for '{binding_id}'");
         return;

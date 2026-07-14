@@ -31,6 +31,31 @@ static MIGRATIONS: &[M] = &[
     ),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_processed_text TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_prompt TEXT;"),
+    // Meeting mode tables
+    M::up(
+        "CREATE TABLE IF NOT EXISTS meetings (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            started_at INTEGER NOT NULL,
+            ended_at INTEGER,
+            duration_seconds INTEGER,
+            status TEXT NOT NULL DEFAULT 'recording',
+            total_segments INTEGER DEFAULT 0
+        );",
+    ),
+    M::up(
+        "CREATE TABLE IF NOT EXISTS meeting_segments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+            segment_index INTEGER NOT NULL,
+            started_at INTEGER NOT NULL,
+            duration_seconds REAL NOT NULL,
+            transcription_text TEXT NOT NULL,
+            audio_file_name TEXT NOT NULL,
+            speaker TEXT NOT NULL DEFAULT 'me',
+            UNIQUE(meeting_id, segment_index)
+        );",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]

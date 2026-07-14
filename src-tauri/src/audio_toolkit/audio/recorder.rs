@@ -19,8 +19,14 @@ use crate::audio_toolkit::{
 enum Cmd {
     Start,
     Stop(mpsc::Sender<Vec<f32>>),
+    /// Extract accumulated samples without stopping recording.
+    /// Keeps the last `DRAIN_OVERLAP_SAMPLES` in the buffer for continuity.
+    Drain(mpsc::Sender<Vec<f32>>),
     Shutdown,
 }
+
+/// 2 seconds of overlap retained after drain (at 16 kHz) to avoid cutting words at chunk boundaries.
+const DRAIN_OVERLAP_SAMPLES: usize = 32_000;
 
 pub struct AudioRecorder {
     device: Option<Device>,
@@ -194,6 +200,16 @@ impl AudioRecorder {
             tx.send(Cmd::Stop(resp_tx))?;
         }
         Ok(resp_rx.recv()?) // wait for the samples
+    }
+
+    /// Extract accumulated samples without stopping recording.
+    /// Returns samples collected so far; keeps a small overlap in the buffer.
+    pub fn drain(&self) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+        let (resp_tx, resp_rx) = mpsc::channel();
+        if let Some(tx) = &self.cmd_tx {
+            tx.send(Cmd::Drain(resp_tx))?;
+        }
+        Ok(resp_rx.recv()?)
     }
 
     pub fn close(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -399,6 +415,22 @@ fn run_consumer(
                     });
 
                     let _ = reply_tx.send(std::mem::take(&mut processed_samples));
+                }
+                Cmd::Drain(reply_tx) => {
+                    if recording && !processed_samples.is_empty() {
+                        let len = processed_samples.len();
+                        if len > DRAIN_OVERLAP_SAMPLES {
+                            // Send everything except the overlap tail
+                            let drained: Vec<f32> =
+                                processed_samples.drain(..len - DRAIN_OVERLAP_SAMPLES).collect();
+                            let _ = reply_tx.send(drained);
+                        } else {
+                            // Not enough samples yet; send a clone and keep all
+                            let _ = reply_tx.send(processed_samples.clone());
+                        }
+                    } else {
+                        let _ = reply_tx.send(Vec::new());
+                    }
                 }
                 Cmd::Shutdown => return,
             }

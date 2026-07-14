@@ -368,6 +368,8 @@ pub struct AppSettings {
     pub file_transcribe_chunking: bool,
     #[serde(default = "default_file_transcribe_chunk_seconds")]
     pub file_transcribe_chunk_seconds: u32,
+    #[serde(default = "default_meeting_chunk_seconds")]
+    pub meeting_chunk_seconds: u32,
 }
 
 fn default_model() -> String {
@@ -586,6 +588,10 @@ fn default_file_transcribe_chunk_seconds() -> u32 {
     120
 }
 
+fn default_meeting_chunk_seconds() -> u32 {
+    30
+}
+
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
     let mut changed = false;
     for provider in default_post_process_providers() {
@@ -785,6 +791,7 @@ pub fn get_default_settings() -> AppSettings {
         custom_filler_words: None,
         file_transcribe_chunking: default_file_transcribe_chunking(),
         file_transcribe_chunk_seconds: default_file_transcribe_chunk_seconds(),
+        meeting_chunk_seconds: default_meeting_chunk_seconds(),
     }
 }
 

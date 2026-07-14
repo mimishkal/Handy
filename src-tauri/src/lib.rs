@@ -28,6 +28,7 @@ use tauri_specta::{collect_commands, Builder};
 use env_filter::Builder as EnvFilterBuilder;
 use managers::audio::AudioRecordingManager;
 use managers::history::HistoryManager;
+use managers::meeting::MeetingManager;
 use managers::model::ModelManager;
 use managers::transcription::TranscriptionManager;
 #[cfg(unix)]
@@ -156,11 +157,15 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     let history_manager =
         Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
 
+    let meeting_manager =
+        Arc::new(MeetingManager::new(app_handle).expect("Failed to initialize meeting manager"));
+
     // Add managers to Tauri's managed state
     app_handle.manage(recording_manager.clone());
     app_handle.manage(model_manager.clone());
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(history_manager.clone());
+    app_handle.manage(meeting_manager.clone());
 
     // Note: Shortcuts are NOT initialized here.
     // The frontend is responsible for calling the `initialize_shortcuts` command
@@ -224,6 +229,23 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                     Ok(()) => log::info!("Model unloaded via tray."),
                     Err(e) => log::error!("Failed to unload model via tray: {}", e),
                 }
+            }
+            "toggle_meeting" => {
+                let meeting_manager = app.state::<Arc<MeetingManager>>();
+                if meeting_manager.is_active() {
+                    if let Some(sid) = meeting_manager.active_session_id() {
+                        match meeting_manager.stop_meeting(&sid) {
+                            Ok(()) => log::info!("Meeting stopped via tray"),
+                            Err(e) => log::error!("Failed to stop meeting via tray: {e}"),
+                        }
+                    }
+                } else {
+                    match meeting_manager.start_meeting() {
+                        Ok(sid) => log::info!("Meeting started via tray: {sid}"),
+                        Err(e) => log::error!("Failed to start meeting via tray: {e}"),
+                    }
+                }
+                tray::update_tray_menu(app, &tray::TrayIconState::Idle, None);
             }
             "cancel" => {
                 use crate::utils::cancel_current_operation;
@@ -416,6 +438,13 @@ pub fn run(cli_args: CliArgs) {
         commands::history::delete_history_entry,
         commands::history::update_history_limit,
         commands::history::update_recording_retention_period,
+        commands::meeting::check_screen_recording_permission,
+        commands::meeting::start_meeting,
+        commands::meeting::stop_meeting,
+        commands::meeting::cancel_meeting,
+        commands::meeting::get_meetings,
+        commands::meeting::get_meeting_transcript,
+        commands::meeting::delete_meeting,
         helpers::clamshell::is_laptop,
     ]);
 

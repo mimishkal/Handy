@@ -1,4 +1,5 @@
 use crate::managers::history::{HistoryEntry, HistoryManager};
+use crate::managers::meeting::MeetingManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::TranscriptionManager;
 use crate::settings;
@@ -130,6 +131,16 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState, locale: Option<&
         .expect("failed to create quit item");
     let separator = || PredefinedMenuItem::separator(app).expect("failed to create separator");
 
+    // Meeting toggle item
+    let meeting_active = app.state::<Arc<MeetingManager>>().is_active();
+    let meeting_label = if meeting_active {
+        "Stop Meeting"
+    } else {
+        "Start Meeting"
+    };
+    let meeting_i = MenuItem::with_id(app, "toggle_meeting", meeting_label, true, None::<&str>)
+        .expect("failed to create meeting item");
+
     // Build model submenu — label is the active model name
     let model_manager = app.state::<Arc<ModelManager>>();
     let models = model_manager.get_available_models();
@@ -194,6 +205,8 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState, locale: Option<&
             app,
             &[
                 &version_i,
+                &separator(),
+                &meeting_i,
                 &separator(),
                 &copy_last_transcript_i,
                 &separator(),
