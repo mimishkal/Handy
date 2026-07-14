@@ -424,6 +424,49 @@ export const PostProcessingSettingsPrompts = React.memo(
 );
 PostProcessingSettingsPrompts.displayName = "PostProcessingSettingsPrompts";
 
+const PostProcessingPromptSlot: React.FC<{
+  slot: 2 | 3;
+  settingKey:
+    | "post_process_selected_prompt_id_2"
+    | "post_process_selected_prompt_id_3";
+  i18nPrefix: string;
+}> = ({ slot: _slot, settingKey, i18nPrefix }) => {
+  const { t } = useTranslation();
+  const { getSetting, updateSetting, isUpdating } = useSettings();
+
+  const prompts = getSetting("post_process_prompts") || [];
+  const selectedId = getSetting(settingKey) || "";
+
+  const handlePromptSelect = (promptId: string | null) => {
+    if (!promptId) return;
+    updateSetting(settingKey, promptId);
+  };
+
+  return (
+    <SettingContainer
+      title={t(`${i18nPrefix}.title`)}
+      description={t(`${i18nPrefix}.description`)}
+      descriptionMode="tooltip"
+      grouped={true}
+    >
+      <Dropdown
+        selectedValue={selectedId || null}
+        options={prompts.map((p) => ({
+          value: p.id,
+          label: p.name,
+        }))}
+        onSelect={(value) => handlePromptSelect(value)}
+        placeholder={
+          prompts.length === 0
+            ? t("settings.postProcessing.prompts.noPrompts")
+            : t(`${i18nPrefix}.selectPrompt`)
+        }
+        disabled={isUpdating(settingKey)}
+      />
+    </SettingContainer>
+  );
+};
+
 export const PostProcessingSettings: React.FC = () => {
   const { t } = useTranslation();
 
@@ -432,6 +475,26 @@ export const PostProcessingSettings: React.FC = () => {
       <SettingsGroup title={t("settings.postProcessing.hotkey.title")}>
         <ShortcutInput
           shortcutId="transcribe_with_post_process"
+          descriptionMode="tooltip"
+          grouped={true}
+        />
+        <PostProcessingPromptSlot
+          slot={2}
+          settingKey="post_process_selected_prompt_id_2"
+          i18nPrefix="settings.postProcessing.promptSlot2"
+        />
+        <ShortcutInput
+          shortcutId="transcribe_with_post_process_2"
+          descriptionMode="tooltip"
+          grouped={true}
+        />
+        <PostProcessingPromptSlot
+          slot={3}
+          settingKey="post_process_selected_prompt_id_3"
+          i18nPrefix="settings.postProcessing.promptSlot3"
+        />
+        <ShortcutInput
+          shortcutId="transcribe_with_post_process_3"
           descriptionMode="tooltip"
           grouped={true}
         />

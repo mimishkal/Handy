@@ -14,6 +14,7 @@
     "advanced": "Advanced",
     "postProcessing": "Post Process",
     "history": "History",
+    "meeting": "Meeting",
     "debug": "Debug",
     "about": "About"
   },
@@ -421,6 +422,16 @@
         "cancel": "Cancel",
         "selectToEdit": "Select a prompt above to view and edit its details.",
         "createFirst": "Click 'Create New Prompt' above to create your first post-processing prompt."
+      },
+      "promptSlot2": {
+        "title": "Prompt for Hotkey 2",
+        "description": "Select a prompt for the second post-processing hotkey.",
+        "selectPrompt": "Select a prompt"
+      },
+      "promptSlot3": {
+        "title": "Prompt for Hotkey 3",
+        "description": "Select a prompt for the third post-processing hotkey.",
+        "selectPrompt": "Select a prompt"
       }
     },
     "history": {
@@ -633,5 +644,34 @@
   "overlay": {
     "transcribing": "Transcribing...",
     "processing": "Processing..."
+  },
+  "meeting": {
+    "live": {
+      "title": "Live Meeting",
+      "recording": "Recording"
+    },
+    "liveTranscript": {
+      "waiting": "Waiting for speech..."
+    },
+    "speaker": {
+      "me": "Me",
+      "others": "Others"
+    },
+    "history": {
+      "title": "Meeting History",
+      "loading": "Loading meetings...",
+      "empty": "No meetings yet. Start a meeting from the system tray."
+    },
+    "transcript": {
+      "loading": "Loading transcript...",
+      "empty": "No transcript segments.",
+      "copyAll": "Copy All"
+    },
+    "permissions": {
+      "screenRecording": {
+        "title": "Screen Recording Permission Required",
+        "description": "To capture audio from other meeting participants, grant Screen Recording permission in System Settings → Privacy & Security → Screen Recording. Without it, only your microphone will be recorded."
+      }
+    }
   }
 }

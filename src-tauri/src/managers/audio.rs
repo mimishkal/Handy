@@ -618,6 +618,27 @@ impl AudioRecordingManager {
         )
     }
 
+    /// Extract accumulated audio samples without stopping the recording.
+    /// Used by meeting mode to get incremental chunks during a long recording session.
+    /// Returns `None` if not currently recording or recorder is unavailable.
+    pub fn drain_samples(&self) -> Option<Vec<f32>> {
+        if !self.is_recording() {
+            return None;
+        }
+        if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
+            match rec.drain() {
+                Ok(samples) if !samples.is_empty() => Some(samples),
+                Ok(_) => None,
+                Err(e) => {
+                    error!("drain_samples() failed: {e}");
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    }
+
     /// Cancel any ongoing recording without returning audio samples
     pub fn cancel_recording(&self) {
         self.cancel_generation.fetch_add(1, Ordering::AcqRel);

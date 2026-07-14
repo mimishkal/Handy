@@ -25,8 +25,14 @@ enum Cmd {
     /// before it was seen).
     Start(VadPolicy, Instant),
     Stop(mpsc::Sender<Vec<f32>>),
+    /// Extract accumulated samples without stopping recording.
+    /// Keeps the last `DRAIN_OVERLAP_SAMPLES` in the buffer for continuity.
+    Drain(mpsc::Sender<Vec<f32>>),
     Shutdown,
 }
+
+/// 2 seconds of overlap retained after drain (at 16 kHz) to avoid cutting words at chunk boundaries.
+const DRAIN_OVERLAP_SAMPLES: usize = 32_000;
 
 enum AudioChunk {
     Samples(Vec<f32>),
@@ -329,6 +335,16 @@ impl AudioRecorder {
             tx.send(Cmd::Stop(resp_tx))?;
         }
         Ok(resp_rx.recv()?) // wait for the samples
+    }
+
+    /// Extract accumulated samples without stopping recording.
+    /// Returns samples collected so far; keeps a small overlap in the buffer.
+    pub fn drain(&self) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+        let (resp_tx, resp_rx) = mpsc::channel();
+        if let Some(tx) = &self.cmd_tx {
+            tx.send(Cmd::Drain(resp_tx))?;
+        }
+        Ok(resp_rx.recv()?)
     }
 
     pub fn close(&mut self) -> Result<(), Box<dyn std::error::Error>> {
@@ -690,6 +706,20 @@ fn run_consumer(
                     // Resume the audio callback so the consumer loop can continue
                     // receiving chunks (important for always-on microphone mode).
                     stop_flag.store(false, Ordering::Relaxed);
+                }
+                Cmd::Drain(reply_tx) => {
+                    // Extract accumulated samples without stopping capture,
+                    // keeping an overlap tail so words aren't cut at chunk
+                    // boundaries. Used by meeting mode's periodic chunking.
+                    if recording && processed_samples.len() > DRAIN_OVERLAP_SAMPLES {
+                        let cut = processed_samples.len() - DRAIN_OVERLAP_SAMPLES;
+                        let drained: Vec<f32> = processed_samples.drain(..cut).collect();
+                        let _ = reply_tx.send(drained);
+                    } else {
+                        // Not recording, or not enough samples yet: return nothing
+                        // and keep the buffer intact for the next drain.
+                        let _ = reply_tx.send(Vec::new());
+                    }
                 }
                 Cmd::Shutdown => {
                     stop_flag.store(true, Ordering::Relaxed);

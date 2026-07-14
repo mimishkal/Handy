@@ -1,4 +1,5 @@
 use crate::managers::history::{HistoryEntry, HistoryManager};
+use crate::managers::meeting::MeetingManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::TranscriptionManager;
 use crate::settings;
@@ -252,6 +253,16 @@ pub fn update_tray_menu(app: &AppHandle, locale: Option<&str>) {
     )
     .expect("failed to create unload model item");
 
+    // Meeting toggle item — label reflects whether a meeting is in progress.
+    let meeting_active = app.state::<Arc<MeetingManager>>().is_active();
+    let meeting_label = if meeting_active {
+        "Stop Meeting"
+    } else {
+        "Start Meeting"
+    };
+    let meeting_i = MenuItem::with_id(app, "toggle_meeting", meeting_label, true, None::<&str>)
+        .expect("failed to create meeting item");
+
     let menu = match state {
         TrayIconState::Recording | TrayIconState::Transcribing => {
             let cancel_i = MenuItem::with_id(app, "cancel", &strings.cancel, true, None::<&str>)
@@ -260,6 +271,8 @@ pub fn update_tray_menu(app: &AppHandle, locale: Option<&str>) {
                 app,
                 &[
                     &version_i,
+                    &separator(),
+                    &meeting_i,
                     &separator(),
                     &cancel_i,
                     &separator(),
@@ -277,6 +290,8 @@ pub fn update_tray_menu(app: &AppHandle, locale: Option<&str>) {
             app,
             &[
                 &version_i,
+                &separator(),
+                &meeting_i,
                 &separator(),
                 &copy_last_transcript_i,
                 &separator(),

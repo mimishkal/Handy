@@ -31,6 +31,33 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN post_processed_text TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_prompt TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_requested BOOLEAN NOT NULL DEFAULT 0;"),
+    // Meeting mode tables (fork feature). Appended after the upstream
+    // migrations so this lineage stays a superset of upstream's — future
+    // upstream migrations slot in as #7+ without renumbering these.
+    M::up(
+        "CREATE TABLE IF NOT EXISTS meetings (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            started_at INTEGER NOT NULL,
+            ended_at INTEGER,
+            duration_seconds INTEGER,
+            status TEXT NOT NULL DEFAULT 'recording',
+            total_segments INTEGER DEFAULT 0
+        );",
+    ),
+    M::up(
+        "CREATE TABLE IF NOT EXISTS meeting_segments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            meeting_id TEXT NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+            segment_index INTEGER NOT NULL,
+            started_at INTEGER NOT NULL,
+            duration_seconds REAL NOT NULL,
+            transcription_text TEXT NOT NULL,
+            audio_file_name TEXT NOT NULL,
+            speaker TEXT NOT NULL DEFAULT 'me',
+            UNIQUE(meeting_id, segment_index)
+        );",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -105,6 +132,10 @@ impl HistoryManager {
         // tauri-plugin-sql used _sqlx_migrations table, rusqlite_migration uses user_version pragma
         self.migrate_from_tauri_plugin_sql(&conn)?;
 
+        // Reconcile databases created by older fork builds whose migration
+        // lineage diverged from upstream (see reconcile_legacy_fork_db).
+        self.reconcile_legacy_fork_db(&conn)?;
+
         // Create migrations object and run to latest version
         let migrations = Migrations::new(MIGRATIONS.to_vec());
 
@@ -130,6 +161,43 @@ impl HistoryManager {
             );
         } else {
             debug!("Database already at latest version {}", version_after);
+        }
+
+        Ok(())
+    }
+
+    /// Reconcile databases created by older fork builds whose migration lineage
+    /// diverged from upstream. Those builds numbered the meeting tables as
+    /// migrations #4/#5, so upstream's migration #4 (the `post_process_requested`
+    /// column) was never applied even though `user_version` reached 5. Left as-is,
+    /// `to_latest` would treat migrations 1-5 as done, skip the column forever, and
+    /// the app's history queries would fail at runtime.
+    ///
+    /// Detect that exact state — `user_version >= 4` but the column is missing —
+    /// then add the column and rewind `user_version` to 4 so `to_latest` re-runs
+    /// the (idempotent, `CREATE TABLE IF NOT EXISTS`) meeting migrations in the new
+    /// lineage order. Meeting data is preserved. No-op on fresh or upstream DBs.
+    fn reconcile_legacy_fork_db(&self, conn: &Connection) -> Result<()> {
+        let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        let has_column: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('transcription_history') \
+                 WHERE name = 'post_process_requested'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+
+        if version >= 4 && has_column == 0 {
+            conn.execute_batch(
+                "ALTER TABLE transcription_history \
+                 ADD COLUMN post_process_requested BOOLEAN NOT NULL DEFAULT 0;",
+            )?;
+            conn.pragma_update(None, "user_version", 4)?;
+            info!(
+                "Reconciled legacy fork database (was v{version}): added post_process_requested \
+                 column and reset user_version to 4 so meeting migrations re-run idempotently"
+            );
         }
 
         Ok(())

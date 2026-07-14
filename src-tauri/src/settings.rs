@@ -424,6 +424,10 @@ pub struct AppSettings {
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
     #[serde(default)]
+    pub post_process_selected_prompt_id_2: Option<String>,
+    #[serde(default)]
+    pub post_process_selected_prompt_id_3: Option<String>,
+    #[serde(default)]
     pub mute_while_recording: bool,
     #[serde(default)]
     pub append_trailing_space: bool,
@@ -464,6 +468,10 @@ pub struct AppSettings {
     /// `overlay_position` (position `none` → style `None`).
     #[serde(default = "default_overlay_style")]
     pub overlay_style: OverlayStyle,
+    /// Meeting mode: how many seconds of audio to accumulate before draining
+    /// and transcribing an incremental chunk.
+    #[serde(default = "default_meeting_chunk_seconds")]
+    pub meeting_chunk_seconds: u32,
 }
 
 fn default_model() -> String {
@@ -529,6 +537,10 @@ fn default_overlay_style() -> OverlayStyle {
 
 fn default_vad_enabled() -> bool {
     true
+}
+
+fn default_meeting_chunk_seconds() -> u32 {
+    30
 }
 
 fn default_debug_mode() -> bool {
@@ -825,6 +837,48 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: default_post_process_shortcut.to_string(),
         },
     );
+    #[cfg(target_os = "windows")]
+    let default_post_process_2_shortcut = "ctrl+alt+space";
+    #[cfg(target_os = "macos")]
+    let default_post_process_2_shortcut = "option+command+space";
+    #[cfg(target_os = "linux")]
+    let default_post_process_2_shortcut = "ctrl+alt+space";
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    let default_post_process_2_shortcut = "alt+meta+space";
+
+    bindings.insert(
+        "transcribe_with_post_process_2".to_string(),
+        ShortcutBinding {
+            id: "transcribe_with_post_process_2".to_string(),
+            name: "Transcribe with Post-Processing 2".to_string(),
+            description:
+                "Converts your speech into text and applies a second AI post-processing prompt."
+                    .to_string(),
+            default_binding: default_post_process_2_shortcut.to_string(),
+            current_binding: default_post_process_2_shortcut.to_string(),
+        },
+    );
+    #[cfg(target_os = "windows")]
+    let default_post_process_3_shortcut = "ctrl+alt+shift+space";
+    #[cfg(target_os = "macos")]
+    let default_post_process_3_shortcut = "option+command+shift+space";
+    #[cfg(target_os = "linux")]
+    let default_post_process_3_shortcut = "ctrl+alt+shift+space";
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    let default_post_process_3_shortcut = "alt+meta+shift+space";
+
+    bindings.insert(
+        "transcribe_with_post_process_3".to_string(),
+        ShortcutBinding {
+            id: "transcribe_with_post_process_3".to_string(),
+            name: "Transcribe with Post-Processing 3".to_string(),
+            description:
+                "Converts your speech into text and applies a third AI post-processing prompt."
+                    .to_string(),
+            default_binding: default_post_process_3_shortcut.to_string(),
+            current_binding: default_post_process_3_shortcut.to_string(),
+        },
+    );
     bindings.insert(
         "cancel".to_string(),
         ShortcutBinding {
@@ -875,6 +929,8 @@ pub fn get_default_settings() -> AppSettings {
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: None,
+        post_process_selected_prompt_id_2: None,
+        post_process_selected_prompt_id_3: None,
         mute_while_recording: false,
         append_trailing_space: false,
         app_language: default_app_language(),
@@ -894,6 +950,7 @@ pub fn get_default_settings() -> AppSettings {
         extra_recording_buffer_ms: 0,
         vad_enabled: default_vad_enabled(),
         overlay_style: default_overlay_style(),
+        meeting_chunk_seconds: default_meeting_chunk_seconds(),
     }
 }
 
